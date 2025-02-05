@@ -1,11 +1,11 @@
 defmodule Hookbook.QueryParamsTest do
   use ExUnit.Case
   alias Hookbook.QueryParams
-  alias Phoenix.LiveView.Socket
   alias Phoenix.LiveView
   alias Phoenix.Component
 
-  @socket %Socket{private: %{lifecycle: %{handle_params: []}}, router: true}
+  # a socket that looks as if it were mounted at the router
+  @socket %LiveView.Socket{private: %{lifecycle: %{handle_params: []}}, router: true}
 
   describe "ensure_init" do
     test "ensures presence of default values in the :hookbook_query_params key of private data" do
@@ -90,15 +90,15 @@ defmodule Hookbook.QueryParamsTest do
 
   describe "handle_query_params" do
     test "updates query_params key on assigns" do
-      socket = QueryParams.assign_spec(@socket, [:foo, type: :string])
-      socket = QueryParams.handle_query_params(socket, [:foo, type: :string], %{"foo" => "bar"})
-      assert %{foo: "bar"} = socket.assigns[:query_params]
+      socket = QueryParams.assign_spec(@socket, [:foo, type: :integer])
+      socket = QueryParams.handle_query_params(socket, [:foo, type: :integer], %{"foo" => "123"})
+      assert %{foo: 123} = socket.assigns[:query_params]
     end
 
     test "updates private data with changes" do
-      socket = QueryParams.assign_spec(@socket, [:foo, type: :string])
-      socket = QueryParams.handle_query_params(socket, [:foo, type: :string], %{"foo" => "bar"})
-      assert %{foo: [from: nil, to: "bar"]} = QueryParams.changes(socket)
+      socket = QueryParams.assign_spec(@socket, [:foo, type: :integer])
+      socket = QueryParams.handle_query_params(socket, [:foo, type: :integer], %{"foo" => "123"})
+      assert %{foo: [from: nil, to: 123]} = QueryParams.changes(socket)
     end
 
     test "does not update private data for fields that did not change" do
