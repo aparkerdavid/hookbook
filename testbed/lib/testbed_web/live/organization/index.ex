@@ -4,6 +4,9 @@ defmodule TestbedWeb.Live.Organization.Index do
   alias Testbed.Organizations.Organization
   alias Testbed.Organizations
 
+  on_mount {TestbedWeb.Live.Organization.Hook, [:page, type: :integer, default: 1]}
+  on_mount {TestbedWeb.Live.Organization.Hook, [:search, type: :string]}
+
   @impl true
   def mount(_params, _session, socket) do
     socket
@@ -12,11 +15,16 @@ defmodule TestbedWeb.Live.Organization.Index do
   end
 
   @impl true
+  def handle_params(_params, _uri, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <div>
       <.header>
-        Organizations
+        Organizations {@query_params.page}
       </.header>
 
       <.button phx-click="seed_organizations">Seed Organizations</.button>
