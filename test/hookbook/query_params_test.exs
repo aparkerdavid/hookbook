@@ -3,6 +3,7 @@ defmodule Hookbook.QueryParamsTest do
   alias Hookbook.QueryParams
   alias Phoenix.LiveView.Socket
   alias Phoenix.LiveView
+  alias Phoenix.Component
 
   @socket %Socket{private: %{lifecycle: %{handle_params: []}}, router: true}
 
@@ -84,6 +85,64 @@ defmodule Hookbook.QueryParamsTest do
 
       assert [%{id: QueryParams.ClearChanges}, %{id: {QueryParams, :foo}}] =
                socket.private.lifecycle.handle_params
+    end
+  end
+
+  describe "handle_query_params" do
+    test "updates query_params key on assigns" do
+      socket = QueryParams.assign_spec(@socket, [:foo, type: :string])
+      socket = QueryParams.handle_query_params(socket, [:foo, type: :string], %{"foo" => "bar"})
+      assert %{foo: "bar"} = socket.assigns[:query_params]
+    end
+
+    test "updates private data with changes" do
+      socket = QueryParams.assign_spec(@socket, [:foo, type: :string])
+      socket = QueryParams.handle_query_params(socket, [:foo, type: :string], %{"foo" => "bar"})
+      assert %{foo: [from: nil, to: "bar"]} = QueryParams.changes(socket)
+    end
+
+    test "does not update private data for fields that did not change" do
+      socket =
+        @socket
+        |> QueryParams.assign_spec([:foo, type: :string])
+        |> Component.assign(query_params: %{foo: "bar"})
+        |> QueryParams.handle_query_params([:foo, type: :string], %{"foo" => "bar"})
+
+      refute socket
+             |> QueryParams.changes()
+             |> Enum.any?()
+    end
+  end
+
+  describe "changes" do
+    test "returns changes from private data" do
+      socket = QueryParams.assign_spec(@socket, [:foo, type: :string])
+      socket = QueryParams.handle_query_params(socket, [:foo, type: :string], %{"foo" => "bar"})
+      assert %{foo: [from: nil, to: "bar"]} = QueryParams.changes(socket)
+    end
+  end
+
+  describe "decode_query_param" do
+    test "decodes strings" do
+      assert "foo" == QueryParams.decode_query_param("foo", :string)
+    end
+
+    test "decodes integers" do
+      assert 1 == QueryParams.decode_query_param("1", :integer)
+    end
+
+    test "decodes floats" do
+      assert 1.0 == QueryParams.decode_query_param("1.0", :float)
+    end
+
+    test "decodes booleans" do
+      assert true == QueryParams.decode_query_param("true", :boolean)
+      assert false == QueryParams.decode_query_param("false", :boolean)
+    end
+
+    test "decodes sorts" do
+      assert {:asc, :name} == QueryParams.decode_query_param("asc:name", :sort)
+      assert {:desc, :name} == QueryParams.decode_query_param("desc:name", :sort)
     end
   end
 end

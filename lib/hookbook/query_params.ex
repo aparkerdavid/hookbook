@@ -28,6 +28,10 @@ defmodule Hookbook.QueryParams do
     )
   end
 
+  def changes(%Socket{} = socket) do
+    socket.private[:hookbook_query_params].changes
+  end
+
   def ensure_init(%Socket{} = socket) do
     private = socket.private[:hookbook_query_params] || %{changes: %{}, specs: []}
 
@@ -37,37 +41,42 @@ defmodule Hookbook.QueryParams do
     |> Component.assign_new(:query_params, fn -> %{} end)
   end
 
-  def query_param_handler([key | opts]) do
-    fn _params, uri, %{assigns: assigns} = socket ->
+  def query_param_handler(spec) do
+    fn _params, uri, socket ->
       query_params = query_params(uri)
 
-      type = Keyword.get(opts, :type, :string)
-      default = Keyword.get(opts, :default)
-
-      value =
-        if param = Map.get(query_params, "#{key}") do
-          decode_query_param(param, type)
-        else
-          default
-        end
-
-      previous_value = assigns.query_params[key]
-
-      private =
-        if value != previous_value do
-          put_in(socket.private[:hookbook_query_params], [:changes, key],
-            from: previous_value,
-            to: value
-          )
-        else
-          socket.private[:hookbook_query_params]
-        end
-
       socket
-      |> LiveView.put_private(:hookbook_query_params, private)
-      |> Component.assign(query_params: Map.put(assigns.query_params, key, value))
+      |> handle_query_params(spec, query_params)
       |> then(&{:cont, &1})
     end
+  end
+
+  def handle_query_params(%{assigns: assigns} = socket, [key | opts], query_params) do
+    type = Keyword.get(opts, :type, :string)
+    default = Keyword.get(opts, :default)
+
+    value =
+      if param = Map.get(query_params, "#{key}") do
+        decode_query_param(param, type)
+      else
+        default
+      end
+
+    previous_value = assigns.query_params[key]
+
+    private =
+      if value != previous_value do
+        put_in(socket.private[:hookbook_query_params], [:changes, key],
+          from: previous_value,
+          to: value
+        )
+      else
+        socket.private[:hookbook_query_params]
+      end
+
+    socket
+    |> LiveView.put_private(:hookbook_query_params, private)
+    |> Component.assign(query_params: Map.put(assigns.query_params, key, value))
   end
 
   def query_params(uri) do
@@ -84,7 +93,22 @@ defmodule Hookbook.QueryParams do
       :integer -> String.to_integer(value)
       :float -> String.to_float(value)
       :boolean -> String.to_existing_atom(value)
+      :sort -> decode_sort(value)
     end
+  end
+
+  defp decode_sort(value) do
+    [direction, field] = String.split(value, ":")
+
+    direction =
+      case direction do
+        "asc" -> :asc
+        "desc" -> :desc
+      end
+
+    field = String.to_existing_atom(field)
+
+    {direction, field}
   end
 
   defp default_value([_key | opts]), do: Keyword.get(opts, :default)
