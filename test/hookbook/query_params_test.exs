@@ -74,10 +74,41 @@ defmodule Hookbook.QueryParamsTest do
     end
   end
 
+  describe "handle_params" do
+    setup do
+      socket =
+        @socket
+        |> QueryParams.init()
+        |> QueryParams.track(:foo, type: :string)
+
+      %{socket: socket}
+    end
+
+    test "handles query params", %{socket: socket} do
+      {:cont, socket} =
+        QueryParams.handle_params(%{}, "http://localhost:4000/foos/1/bars/42?foo=bar", socket)
+
+      assert %{foo: "bar"} = socket.private[:hookbook_query_params].values
+    end
+
+    test "handles base path", %{socket: socket} do
+      {:cont, socket} =
+        QueryParams.handle_params(%{}, "http://localhost:4000/foos/1/bars/42", socket)
+
+      assert %{path: "/foos/1/bars/42"} = socket.private[:hookbook_query_params]
+    end
+  end
+
   describe "handle_query_params" do
     setup do
       socket = QueryParams.init(@socket)
       %{socket: socket}
+    end
+
+    test "foo" do
+      socket = QueryParams.init(@socket)
+
+      QueryParams.handle_params(%{}, "http://localhost:4000/foos/1/bars/42?foo=bar", socket)
     end
 
     test "updates values key on private data", %{socket: socket} do

@@ -69,10 +69,13 @@ defmodule Hookbook.QueryParams do
   end
 
   def handle_params(_params, uri, socket) do
+    %URI{} = uri = URI.parse(uri)
     query_params = query_params(uri)
+    path = uri.path
 
     socket
     |> handle_query_params(query_params)
+    |> set_private(:path, path)
     |> then(&{:cont, &1})
   end
 
@@ -113,8 +116,8 @@ defmodule Hookbook.QueryParams do
     end
   end
 
-  defp query_params(uri) do
-    if query = uri |> URI.parse() |> Map.get(:query) do
+  defp query_params(%URI{query: query}) do
+    if query do
       URI.decode_query(query)
     else
       %{}
