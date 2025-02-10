@@ -1,85 +1,90 @@
 defmodule Hookbook.QueryParams do
-  alias Phoenix.Component
   alias Phoenix.LiveView
   alias Phoenix.LiveView.Socket
+  alias __MODULE__.Spec
 
-  def on_mount(spec, _params, _session, socket) do
+  def on_mount(:init, _params, _session, socket) do
     socket
-    |> assign_spec(spec)
+    |> init()
     |> then(&{:cont, &1})
   end
 
-  def assign_spec(%Socket{} = socket, spec) do
-    %{assigns: assigns} = socket = ensure_init(socket)
+  def on_mount([key | opts], _params, _session, socket) do
+    socket
+    |> track(key, opts)
+    |> then(&{:cont, &1})
+  end
+
+  def track(%Socket{} = socket, key, opts) do
+    specs = get_private(socket, :specs)
+
+    spec = %Spec{key: key, opts: opts}
 
     socket
-    |> Component.assign(
-      query_params: Map.put(assigns[:query_params], List.first(spec), default_value(spec))
-    )
-    |> LiveView.put_private(
-      :hookbook_query_params,
-      socket.private[:hookbook_query_params]
-      |> Map.put(:specs, [spec | socket.private[:hookbook_query_params].specs])
-    )
-    |> LiveView.attach_hook(
-      {__MODULE__, List.first(spec)},
-      :handle_params,
-      query_param_handler(spec)
-    )
+    |> set_private(:specs, [spec | specs])
+    |> update_value(spec, %{})
   end
 
   def changes(%Socket{} = socket) do
-    socket.private[:hookbook_query_params].changes
-  end
+    previous_values = get_private(socket, :previous_values)
+    values = get_private(socket, :values)
 
-  def ensure_init(%Socket{} = socket) do
-    private = socket.private[:hookbook_query_params] || %{changes: %{}, specs: []}
-
-    socket
-    |> ensure_clear_changes_handler()
-    |> LiveView.put_private(:hookbook_query_params, private)
-    |> Component.assign_new(:query_params, fn -> %{} end)
-  end
-
-  def query_param_handler(spec) do
-    fn _params, uri, socket ->
-      query_params = query_params(uri)
-
-      socket
-      |> handle_query_params(spec, query_params)
-      |> then(&{:cont, &1})
+    for {key, value} <- previous_values, reduce: %{} do
+      changes -> Map.put(changes, key, from: value, to: values[key])
     end
   end
 
-  def handle_query_params(%{assigns: assigns} = socket, [key | opts], query_params) do
-    type = Keyword.get(opts, :type, :string)
-    default = Keyword.get(opts, :default)
+  def values(%Socket{} = socket), do: get_private(socket, :values)
 
-    value =
-      if param = Map.get(query_params, "#{key}") do
-        decode_query_param(param, type)
-      else
-        default
-      end
-
-    previous_value = assigns.query_params[key]
-
-    private =
-      if value != previous_value do
-        put_in(socket.private[:hookbook_query_params], [:changes, key],
-          from: previous_value,
-          to: value
-        )
-      else
-        socket.private[:hookbook_query_params]
-      end
-
-    socket
-    |> LiveView.put_private(:hookbook_query_params, private)
-    |> Component.assign(query_params: Map.put(assigns.query_params, key, value))
+  def init(%Socket{} = socket) do
+    if get_private(socket) do
+      socket
+    else
+      socket
+      |> LiveView.attach_hook(
+        __MODULE__.HandleParams,
+        :handle_params,
+        &handle_params/3
+      )
+      |> set_private(:values, %{})
+      |> set_private(:previous_values, %{})
+      |> set_private(:specs, [])
+    end
   end
 
-  def query_params(uri) do
+  def handle_params(_params, uri, socket) do
+    query_params = query_params(uri)
+
+    socket
+    |> handle_query_params(query_params)
+    |> then(&{:cont, &1})
+  end
+
+  def handle_query_params(socket, params) do
+    specs = get_private(socket, :specs)
+
+    socket = set_private(socket, :previous_values, %{})
+
+    for spec <- specs, reduce: socket do
+      socket -> update_value(socket, spec, params)
+    end
+  end
+
+  def update_value(socket, %Spec{} = spec, query_params) do
+    previous_value = get_private(socket, :values)[spec.key]
+    value = decode_spec(spec, query_params)
+
+    socket =
+      if previous_value != value do
+        set_previous_value(socket, spec.key, previous_value)
+      else
+        socket
+      end
+
+    set_value(socket, spec.key, value)
+  end
+
+  defp query_params(uri) do
     if query = uri |> URI.parse() |> Map.get(:query) do
       URI.decode_query(query)
     else
@@ -87,7 +92,7 @@ defmodule Hookbook.QueryParams do
     end
   end
 
-  def decode_query_param(value, type) do
+  def decode_param(value, type) do
     case type do
       :string -> value
       :integer -> String.to_integer(value)
@@ -111,28 +116,41 @@ defmodule Hookbook.QueryParams do
     {direction, field}
   end
 
-  defp default_value([_key | opts]), do: Keyword.get(opts, :default)
-
-  defp ensure_clear_changes_handler(socket) do
-    handlers = socket.private[:lifecycle][:handle_params]
-
-    if Enum.any?(handlers, &(&1.id == __MODULE__.ClearChanges)) do
+  defp set_value(socket, key, value) do
+    values =
       socket
+      |> get_private(:values)
+      |> Map.put(key, value)
+
+    set_private(socket, :values, values)
+  end
+
+  defp set_previous_value(socket, key, value) do
+    previous_values =
+      socket
+      |> get_private(:previous_values)
+      |> Map.put(key, value)
+
+    set_private(socket, :previous_values, previous_values)
+  end
+
+  def decode_spec(%Spec{key: key, opts: opts}, query_params) do
+    type = Keyword.get(opts, :type, :string)
+    default = Keyword.get(opts, :default)
+
+    if param = Map.get(query_params, "#{key}") do
+      decode_param(param, type)
     else
-      LiveView.attach_hook(
-        socket,
-        __MODULE__.ClearChanges,
-        :handle_params,
-        &clear_changes/3
-      )
+      default
     end
   end
 
-  defp clear_changes(_params, _uri, socket) do
-    private = (socket.private[:hookbook_query_params] || %{}) |> Map.put(:changes, %{})
+  defp get_private(socket), do: socket.private[:hookbook_query_params]
+  defp get_private(socket, key), do: get_private(socket)[key]
 
-    socket
-    |> LiveView.put_private(:hookbook_query_params, private)
-    |> then(&{:cont, &1})
+  defp set_private(socket, key, value) do
+    private = get_private(socket) || %{}
+
+    LiveView.put_private(socket, :hookbook_query_params, Map.put(private, key, value))
   end
 end

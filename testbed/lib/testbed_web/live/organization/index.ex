@@ -3,20 +3,28 @@ defmodule TestbedWeb.Live.Organization.Index do
   alias Testbed.Repo
   alias Testbed.Organizations.Organization
   alias Testbed.Organizations
+  alias Hookbook.QueryParams
 
-  on_mount {TestbedWeb.Live.Organization.Hook, [:page, type: :integer, default: 1]}
-  on_mount {TestbedWeb.Live.Organization.Hook, [:search, type: :string]}
+  on_mount {QueryParams, [:page, type: :integer, default: 1]}
+  on_mount {QueryParams, [:search, type: :string]}
 
   @impl true
   def mount(_params, _session, socket) do
     socket
-    |> assign(:organizations, Repo.all(Organization))
+    |> assign(
+      organizations: Repo.all(Organization),
+      changes: %{}
+    )
     |> then(&{:ok, &1})
   end
 
   @impl true
   def handle_params(_params, _uri, socket) do
-    {:noreply, socket}
+    changes = QueryParams.changes(socket)
+
+    socket
+    |> assign(changes: changes)
+    |> then(&{:noreply, &1})
   end
 
   @impl true
@@ -26,6 +34,7 @@ defmodule TestbedWeb.Live.Organization.Index do
       <.header>
         Organizations {@query_params.page}
       </.header>
+      {inspect(@changes)}
 
       <.button phx-click="seed_organizations">Seed Organizations</.button>
 
