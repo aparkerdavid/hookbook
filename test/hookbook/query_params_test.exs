@@ -107,6 +107,45 @@ defmodule Hookbook.QueryParamsTest do
     end
   end
 
+  describe "opt: assign" do
+    setup do
+      socket = QueryParams.init(@socket)
+      %{socket: socket}
+    end
+
+    test "if true, tracks query param with its respective key on the socket assigns", %{
+      socket: socket
+    } do
+      socket = QueryParams.track(socket, :foo, type: :string, assign: true)
+      socket = QueryParams.handle_query_params(socket, %{"foo" => "bar"})
+      assert %{foo: "bar"} = socket.assigns
+    end
+
+    test "if an atom, tracks query param with that key on the socket assigns", %{socket: socket} do
+      socket = QueryParams.track(socket, :foo, type: :string, assign: :bar)
+      socket = QueryParams.handle_query_params(socket, %{"foo" => "bar"})
+      assert %{bar: "bar"} = socket.assigns
+    end
+
+    test "if false, does not track query param on the socket assigns", %{socket: socket} do
+      socket = QueryParams.track(socket, :foo, type: :string, assign: false)
+      socket = QueryParams.handle_query_params(socket, %{"foo" => "bar"})
+      refute Map.has_key?(socket.assigns, :foo)
+    end
+
+    test "if nil, does not track query param on the socket assigns", %{socket: socket} do
+      socket = QueryParams.track(socket, :foo, type: :string, assign: nil)
+      socket = QueryParams.handle_query_params(socket, %{"foo" => "bar"})
+      refute Map.has_key?(socket.assigns, :foo)
+    end
+
+    test "if unset, does not track query param on the socket assigns", %{socket: socket} do
+      socket = QueryParams.track(socket, :foo, type: :string)
+      socket = QueryParams.handle_query_params(socket, %{"foo" => "bar"})
+      refute Map.has_key?(socket.assigns, :foo)
+    end
+  end
+
   describe "changes" do
     setup do
       socket = QueryParams.init(@socket)

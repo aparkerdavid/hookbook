@@ -5,8 +5,8 @@ defmodule TestbedWeb.Live.Organization.Index do
   alias Testbed.Organizations
   use Hookbook.QueryParams
 
-  query_param(:page, type: :integer, default: 1)
-  query_param(:foo, type: :string)
+  query_param(:page, type: :integer, default: 1, assign: true)
+  query_param(:foo, type: :string, assign: :bar)
 
   @impl true
   def mount(_params, _session, socket) do
@@ -19,14 +19,7 @@ defmodule TestbedWeb.Live.Organization.Index do
   end
 
   @impl true
-  def handle_params(_params, _uri, socket) do
-    changes = QueryParams.changes(socket)
-    values = QueryParams.values(socket)
-
-    socket
-    |> assign(changes: changes, values: values)
-    |> then(&{:noreply, &1})
-  end
+  def handle_params(_, _, socket), do: {:noreply, socket}
 
   @impl true
   def render(assigns) do
@@ -36,10 +29,10 @@ defmodule TestbedWeb.Live.Organization.Index do
         Organizations
       </.header>
       <p>
-        values: {inspect(@values)}
+        values: {inspect(@page)}
       </p>
       <p>
-        changes: {inspect(@changes)}
+        changes: {inspect(@bar)}
       </p>
       <.button phx-click="seed_organizations">Seed Organizations</.button>
       <.link patch={~p"/organizations?foo=Bar"}>Bar</.link>

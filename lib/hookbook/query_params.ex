@@ -1,4 +1,5 @@
 defmodule Hookbook.QueryParams do
+  alias Phoenix.Component
   alias Phoenix.LiveView
   alias Phoenix.LiveView.Socket
   alias __MODULE__.Spec
@@ -89,6 +90,13 @@ defmodule Hookbook.QueryParams do
     previous_value = get_private(socket, :values)[spec.key]
     value = decode_spec(spec, query_params)
 
+    assign_key =
+      case spec.opts[:assign] do
+        key when is_boolean(key) -> key && spec.key
+        key when is_atom(key) -> key
+        _ -> nil
+      end
+
     socket =
       if previous_value != value do
         set_previous_value(socket, spec.key, previous_value)
@@ -96,7 +104,13 @@ defmodule Hookbook.QueryParams do
         socket
       end
 
-    set_value(socket, spec.key, value)
+    socket = set_value(socket, spec.key, value)
+
+    if assign_key do
+      Component.assign(socket, assign_key, value)
+    else
+      socket
+    end
   end
 
   defp query_params(uri) do
