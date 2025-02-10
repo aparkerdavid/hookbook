@@ -1,11 +1,37 @@
 defmodule Hookbook.QueryParams.Encoding do
-  def decode(value, type) do
+  alias __MODULE__.Protocol
+
+  def encode(nil, _type), do: nil
+
+  def encode(%{__struct__: module} = value, module) do
+    if Protocol.impl_for(%{__struct__: module}) do
+      Protocol.encode(value)
+    end
+  end
+
+  def encode(value, type) do
     case type do
       :string -> value
-      :integer -> String.to_integer(value)
-      :float -> String.to_float(value)
-      :boolean -> String.to_existing_atom(value)
-      :sort -> decode_sort(value)
+      :integer -> Integer.to_string(value)
+      :float -> Float.to_string(value)
+      :boolean -> if value, do: "true", else: "false"
+      :sort -> encode_sort(value)
+    end
+  end
+
+  def decode(value, type) do
+    dummy = %{__struct__: type}
+
+    if Protocol.impl_for(dummy) do
+      Protocol.decode(dummy, value)
+    else
+      case type do
+        :string -> value
+        :integer -> String.to_integer(value)
+        :float -> String.to_float(value)
+        :boolean -> String.to_existing_atom(value)
+        :sort -> decode_sort(value)
+      end
     end
   end
 
@@ -39,18 +65,6 @@ defmodule Hookbook.QueryParams.Encoding do
       spec.opts[:type]
     else
       raise "No type found for key: #{key}"
-    end
-  end
-
-  def encode(nil, _type), do: nil
-
-  def encode(value, type) do
-    case type do
-      :string -> value
-      :integer -> Integer.to_string(value)
-      :float -> Float.to_string(value)
-      :boolean -> if value, do: "true", else: "false"
-      :sort -> encode_sort(value)
     end
   end
 
