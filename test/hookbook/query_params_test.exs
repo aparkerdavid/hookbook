@@ -89,7 +89,7 @@ defmodule Hookbook.QueryParamsTest do
       socket: socket
     } do
       {:cont, socket} = QueryParams.handle_params(%{}, "/foos/1/bars/42?foo=bar&baz=42", socket)
-      {:cont, socket} = QueryParams.merge(socket, %{foo: "baz", bar: 2})
+      socket = QueryParams.merge(socket, %{foo: "baz", bar: 2})
 
       assert %{
                redirected: {:live, :patch, %{kind: :push, to: "/foos/1/bars/42?bar=2&foo=baz"}}
@@ -100,7 +100,7 @@ defmodule Hookbook.QueryParamsTest do
       socket: socket
     } do
       {:cont, socket} = QueryParams.handle_params(%{}, "/foos/1/bars/42?foo=bar&bar=42", socket)
-      {:cont, socket} = QueryParams.drop(socket, [:foo])
+      socket = QueryParams.drop(socket, [:foo])
 
       assert %{
                redirected: {:live, :patch, %{kind: :push, to: "/foos/1/bars/42?bar=42"}}
@@ -109,7 +109,7 @@ defmodule Hookbook.QueryParamsTest do
 
     test "set applies patch to socket with query params set to given values", %{socket: socket} do
       {:cont, socket} = QueryParams.handle_params(%{}, "/foos/1/bars/42?foo=bar&bar=42", socket)
-      {:cont, socket} = QueryParams.set(socket, %{foo: "baz"})
+      socket = QueryParams.set(socket, %{foo: "baz"})
 
       assert %{
                redirected: {:live, :patch, %{kind: :push, to: "/foos/1/bars/42?foo=baz"}}

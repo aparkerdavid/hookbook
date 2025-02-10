@@ -8,6 +8,8 @@ defmodule TestbedWeb.Live.Organization.Index do
   query_param(:page, type: :integer, default: 1, assign: true)
   query_param(:foo, type: :string, assign: :bar)
 
+  query_param(:count, type: :integer, default: 0, assign: true)
+
   @impl true
   def mount(_params, _session, socket) do
     socket
@@ -29,12 +31,11 @@ defmodule TestbedWeb.Live.Organization.Index do
         Organizations
       </.header>
       <p>
-        values: {inspect(@page)}
+        count: {@count}
       </p>
-      <p>
-        changes: {inspect(@bar)}
-      </p>
-      <.button phx-click="seed_organizations">Seed Organizations</.button>
+      <.button phx-click="increment">Increment</.button>
+      <.button phx-click="clear">Clear</.button>
+
       <.link patch={~p"/organizations?foo=Bar"}>Bar</.link>
       <.link patch={~p"/organizations?foo=Baz"}>Baz</.link>
       <.link patch={~p"/organizations?foo=Qux"}>Qux</.link>
@@ -66,9 +67,15 @@ defmodule TestbedWeb.Live.Organization.Index do
     |> then(&{:noreply, &1})
   end
 
-  def handle_event("click_me", _params, socket) do
+  def handle_event("increment", _params, socket) do
     socket
-    |> push_patch(to: ~p"/organizations?foo=bar")
+    |> QueryParams.merge(%{count: socket.assigns.count + 1})
+    |> then(&{:noreply, &1})
+  end
+
+  def handle_event("clear", _params, socket) do
+    socket
+    |> QueryParams.drop([:count])
     |> then(&{:noreply, &1})
   end
 end

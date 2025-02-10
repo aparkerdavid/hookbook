@@ -25,25 +25,19 @@ defmodule Hookbook.QueryParams do
   def merge(socket, query_params, opts \\ []) do
     opts = [{:to, Path.merge(socket, query_params)} | opts]
 
-    socket
-    |> LiveView.push_patch(opts)
-    |> then(&{:cont, &1})
+    LiveView.push_patch(socket, opts)
   end
 
   def drop(socket, keys, opts \\ []) do
     opts = [{:to, Path.drop(socket, keys)} | opts]
 
-    socket
-    |> LiveView.push_patch(opts)
-    |> then(&{:cont, &1})
+    LiveView.push_patch(socket, opts)
   end
 
   def set(socket, query_params, opts \\ []) do
     opts = [{:to, Path.set(socket, query_params)} | opts]
 
-    socket
-    |> LiveView.push_patch(opts)
-    |> then(&{:cont, &1})
+    LiveView.push_patch(socket, opts)
   end
 
   def on_mount(:init, _params, _session, socket) do
