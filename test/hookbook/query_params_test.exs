@@ -74,6 +74,49 @@ defmodule Hookbook.QueryParamsTest do
     end
   end
 
+  describe "patch helpers" do
+    setup do
+      socket =
+        @socket
+        |> QueryParams.init()
+        |> QueryParams.track(:foo, type: :string)
+        |> QueryParams.track(:bar, type: :integer)
+
+      %{socket: socket}
+    end
+
+    test "merge applies patch to socket with given data merged into existing query params", %{
+      socket: socket
+    } do
+      {:cont, socket} = QueryParams.handle_params(%{}, "/foos/1/bars/42?foo=bar&baz=42", socket)
+      {:cont, socket} = QueryParams.merge(socket, %{foo: "baz", bar: 2})
+
+      assert %{
+               redirected: {:live, :patch, %{kind: :push, to: "/foos/1/bars/42?bar=2&foo=baz"}}
+             } = socket
+    end
+
+    test "drop applies patch to socket with given keys dropped from existing query params", %{
+      socket: socket
+    } do
+      {:cont, socket} = QueryParams.handle_params(%{}, "/foos/1/bars/42?foo=bar&bar=42", socket)
+      {:cont, socket} = QueryParams.drop(socket, [:foo])
+
+      assert %{
+               redirected: {:live, :patch, %{kind: :push, to: "/foos/1/bars/42?bar=42"}}
+             } = socket
+    end
+
+    test "set applies patch to socket with query params set to given values", %{socket: socket} do
+      {:cont, socket} = QueryParams.handle_params(%{}, "/foos/1/bars/42?foo=bar&bar=42", socket)
+      {:cont, socket} = QueryParams.set(socket, %{foo: "baz"})
+
+      assert %{
+               redirected: {:live, :patch, %{kind: :push, to: "/foos/1/bars/42?foo=baz"}}
+             } = socket
+    end
+  end
+
   describe "handle_params" do
     setup do
       socket =
@@ -200,30 +243,6 @@ defmodule Hookbook.QueryParamsTest do
       socket = QueryParams.track(socket, :foo, type: :string)
       socket = QueryParams.handle_query_params(socket, %{"foo" => "bar"})
       assert %{foo: "bar"} = QueryParams.values(socket)
-    end
-  end
-
-  describe "decode_param" do
-    test "decodes strings" do
-      assert "foo" == QueryParams.decode_param("foo", :string)
-    end
-
-    test "decodes integers" do
-      assert 1 == QueryParams.decode_param("1", :integer)
-    end
-
-    test "decodes floats" do
-      assert 1.0 == QueryParams.decode_param("1.0", :float)
-    end
-
-    test "decodes booleans" do
-      assert true == QueryParams.decode_param("true", :boolean)
-      assert false == QueryParams.decode_param("false", :boolean)
-    end
-
-    test "decodes sorts" do
-      assert {:asc, :name} == QueryParams.decode_param("asc:name", :sort)
-      assert {:desc, :name} == QueryParams.decode_param("desc:name", :sort)
     end
   end
 end

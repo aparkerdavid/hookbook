@@ -3,6 +3,9 @@ defmodule Hookbook.QueryParams do
   alias Phoenix.LiveView
   alias Phoenix.LiveView.Socket
   alias __MODULE__.Spec
+  alias __MODULE__.PrivateData
+  alias __MODULE__.Path
+  alias __MODULE__.Encoding
 
   defmacro __using__(_opts) do
     quote do
@@ -19,6 +22,30 @@ defmodule Hookbook.QueryParams do
     end
   end
 
+  def merge(socket, query_params, opts \\ []) do
+    opts = [{:to, Path.merge(socket, query_params)} | opts]
+
+    socket
+    |> LiveView.push_patch(opts)
+    |> then(&{:cont, &1})
+  end
+
+  def drop(socket, keys, opts \\ []) do
+    opts = [{:to, Path.drop(socket, keys)} | opts]
+
+    socket
+    |> LiveView.push_patch(opts)
+    |> then(&{:cont, &1})
+  end
+
+  def set(socket, query_params, opts \\ []) do
+    opts = [{:to, Path.set(socket, query_params)} | opts]
+
+    socket
+    |> LiveView.push_patch(opts)
+    |> then(&{:cont, &1})
+  end
+
   def on_mount(:init, _params, _session, socket) do
     socket
     |> init()
@@ -32,28 +59,28 @@ defmodule Hookbook.QueryParams do
   end
 
   def track(%Socket{} = socket, key, opts) do
-    specs = get_private(socket, :specs)
+    specs = PrivateData.get(socket, :specs)
 
     spec = %Spec{key: key, opts: opts}
 
     socket
-    |> set_private(:specs, [spec | specs])
+    |> PrivateData.put(:specs, [spec | specs])
     |> update_value(spec, %{})
   end
 
   def changes(%Socket{} = socket) do
-    previous_values = get_private(socket, :previous_values)
-    values = get_private(socket, :values)
+    previous_values = PrivateData.get(socket, :previous_values)
+    values = PrivateData.get(socket, :values)
 
     for {key, value} <- previous_values, reduce: %{} do
       changes -> Map.put(changes, key, from: value, to: values[key])
     end
   end
 
-  def values(%Socket{} = socket), do: get_private(socket, :values)
+  def values(%Socket{} = socket), do: PrivateData.get(socket, :values)
 
   def init(%Socket{} = socket) do
-    if get_private(socket) do
+    if PrivateData.get(socket) do
       socket
     else
       socket
@@ -62,9 +89,9 @@ defmodule Hookbook.QueryParams do
         :handle_params,
         &handle_params/3
       )
-      |> set_private(:values, %{})
-      |> set_private(:previous_values, %{})
-      |> set_private(:specs, [])
+      |> PrivateData.put(:values, %{})
+      |> PrivateData.put(:previous_values, %{})
+      |> PrivateData.put(:specs, [])
     end
   end
 
@@ -75,14 +102,14 @@ defmodule Hookbook.QueryParams do
 
     socket
     |> handle_query_params(query_params)
-    |> set_private(:path, path)
+    |> PrivateData.put(:path, path)
     |> then(&{:cont, &1})
   end
 
   def handle_query_params(socket, params) do
-    specs = get_private(socket, :specs)
+    specs = PrivateData.get(socket, :specs)
 
-    socket = set_private(socket, :previous_values, %{})
+    socket = PrivateData.put(socket, :previous_values, %{})
 
     for spec <- specs, reduce: socket do
       socket -> update_value(socket, spec, params)
@@ -90,7 +117,7 @@ defmodule Hookbook.QueryParams do
   end
 
   def update_value(socket, %Spec{} = spec, query_params) do
-    previous_value = get_private(socket, :values)[spec.key]
+    previous_value = PrivateData.get(socket, :values)[spec.key]
     value = decode_spec(spec, query_params)
 
     assign_key =
@@ -124,46 +151,22 @@ defmodule Hookbook.QueryParams do
     end
   end
 
-  def decode_param(value, type) do
-    case type do
-      :string -> value
-      :integer -> String.to_integer(value)
-      :float -> String.to_float(value)
-      :boolean -> String.to_existing_atom(value)
-      :sort -> decode_sort(value)
-    end
-  end
-
-  defp decode_sort(value) do
-    [direction, field] = String.split(value, ":")
-
-    direction =
-      case direction do
-        "asc" -> :asc
-        "desc" -> :desc
-      end
-
-    field = String.to_existing_atom(field)
-
-    {direction, field}
-  end
-
   defp set_value(socket, key, value) do
     values =
       socket
-      |> get_private(:values)
+      |> PrivateData.get(:values)
       |> Map.put(key, value)
 
-    set_private(socket, :values, values)
+    PrivateData.put(socket, :values, values)
   end
 
   defp set_previous_value(socket, key, value) do
     previous_values =
       socket
-      |> get_private(:previous_values)
+      |> PrivateData.get(:previous_values)
       |> Map.put(key, value)
 
-    set_private(socket, :previous_values, previous_values)
+    PrivateData.put(socket, :previous_values, previous_values)
   end
 
   def decode_spec(%Spec{key: key, opts: opts}, query_params) do
@@ -171,18 +174,9 @@ defmodule Hookbook.QueryParams do
     default = Keyword.get(opts, :default)
 
     if param = Map.get(query_params, "#{key}") do
-      decode_param(param, type)
+      Encoding.decode(param, type)
     else
       default
     end
-  end
-
-  defp get_private(socket), do: socket.private[:hookbook_query_params]
-  defp get_private(socket, key), do: get_private(socket)[key]
-
-  defp set_private(socket, key, value) do
-    private = get_private(socket) || %{}
-
-    LiveView.put_private(socket, :hookbook_query_params, Map.put(private, key, value))
   end
 end
