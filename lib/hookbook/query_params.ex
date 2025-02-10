@@ -3,13 +3,28 @@ defmodule Hookbook.QueryParams do
   alias Phoenix.LiveView.Socket
   alias __MODULE__.Spec
 
+  defmacro __using__(_opts) do
+    quote do
+      on_mount({unquote(__MODULE__), :init})
+
+      import unquote(__MODULE__), only: [query_param: 2]
+      alias unquote(__MODULE__)
+    end
+  end
+
+  defmacro query_param(key, opts) do
+    quote do
+      on_mount({unquote(__MODULE__), {unquote(key), unquote(opts)}})
+    end
+  end
+
   def on_mount(:init, _params, _session, socket) do
     socket
     |> init()
     |> then(&{:cont, &1})
   end
 
-  def on_mount([key | opts], _params, _session, socket) do
+  def on_mount({key, opts}, _params, _session, socket) do
     socket
     |> track(key, opts)
     |> then(&{:cont, &1})
