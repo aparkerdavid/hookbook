@@ -47,6 +47,9 @@ defmodule Hookbook.QueryParams do
   end
 
   def on_mount({key, opts}, _params, _session, socket) do
+    IO.inspect(key, label: "KEY")
+    IO.inspect(opts, label: "OPTS")
+
     socket
     |> track(key, opts)
     |> then(&{:cont, &1})

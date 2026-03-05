@@ -4,10 +4,9 @@ defmodule TestbedWeb.Live.Organization.Index do
   alias Testbed.Organizations.Organization
   alias Testbed.Organizations
   use Hookbook.QueryParams
+  use Hookbook.Pagination
 
-  query_param(:page, type: :integer, default: 1, assign: true)
   query_param(:foo, type: :string, assign: :bar)
-
   query_param(:count, type: :integer, default: 0, assign: true)
 
   @impl true
@@ -31,10 +30,12 @@ defmodule TestbedWeb.Live.Organization.Index do
         Organizations
       </.header>
       <p>
-        count: {@count}
+        count: {@count} page: {@page}
       </p>
       <.button phx-click="increment">Increment</.button>
       <.button phx-click="clear">Clear</.button>
+      <.button phx-click={Pagination.next()}>Next</.button>
+      <.button phx-click={Pagination.prev()}>Previous</.button>
 
       <.link patch={~p"/organizations?foo=Bar"}>Bar</.link>
       <.link patch={~p"/organizations?foo=Baz"}>Baz</.link>
