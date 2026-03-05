@@ -46,7 +46,7 @@ defmodule Hookbook.Pagination do
     |> then(&{:halt, &1})
   end
 
-  def handle_event(event, _params, socket) do
+  def handle_event(_event, _params, socket) do
     {:cont, socket}
   end
 end

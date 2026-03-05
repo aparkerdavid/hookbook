@@ -21,7 +21,7 @@ defmodule Hookbook.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:phoenix_live_view, "~> 1.0.0"},
+      {:phoenix_live_view, "~> 0.20"},
       {:phoenix, "~> 1.7.18"}
     ]
   end
