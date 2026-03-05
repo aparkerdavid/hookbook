@@ -47,12 +47,6 @@ defmodule Hookbook.Pagination do
   end
 
   def handle_event(event, _params, socket) do
-    IO.inspect(event, label: "GOT EVENT")
-    IO.inspect("cf:")
-    IO.inspect(@prev, label: "PREV")
-    IO.inspect(@next, label: "NEXT")
-    IO.inspect(@page, label: "PAGE")
-
     {:cont, socket}
   end
 end
