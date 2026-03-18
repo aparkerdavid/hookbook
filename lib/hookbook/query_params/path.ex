@@ -37,7 +37,10 @@ defmodule Hookbook.QueryParams.Path do
   end
 
   defp build_path(path, specs, values) do
-    query_params = if Enum.any?(values), do: Encoding.encode_params(values, specs)
+    query_params =
+      if Enum.any?(values, fn {_key, value} -> value != nil end) do
+        Encoding.encode_params(values, specs)
+      end
 
     path
     |> URI.parse()

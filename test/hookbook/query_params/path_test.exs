@@ -40,6 +40,21 @@ defmodule Hookbook.QueryParams.PathTest do
       assert "/route/parameter/123?foo=bar" = Path.drop(socket, [:baz])
       assert "/route/parameter/123?baz=42" = Path.drop(socket, [:foo])
     end
+
+    test "does not append trailing ? when all tracked params are nil" do
+      socket = @socket
+
+      socket =
+        socket
+        |> QueryParams.init()
+        |> QueryParams.track(:foo, type: :string)
+        |> QueryParams.track(:baz, type: :integer)
+
+      {:cont, socket} = QueryParams.handle_params(%{}, "/route/parameter/123", socket)
+
+      assert "/route/parameter/123" = Path.drop(socket, [:foo])
+      assert "/route/parameter/123" = Path.merge(socket, %{})
+    end
   end
 
   describe "set" do
